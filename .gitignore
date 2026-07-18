@@ -1,0 +1,5 @@
+# Exclusion des datasets volumineux
+data/
+
+# Exclusion des modèles entraînés
+models_saved/
