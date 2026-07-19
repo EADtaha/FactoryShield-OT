@@ -1,5 +1,12 @@
-# Exclusion des datasets volumineux
-data/
+# Cache Python
+__pycache__/
+*.pyc
 
-# Exclusion des modèles entraînés
+# Données lourdes et prédictions
+out/
+data/
+*.csv
+
+# Modèles sauvegardés
 models_saved/
+*.pth
