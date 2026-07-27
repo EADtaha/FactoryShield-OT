@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import (
@@ -18,7 +19,7 @@ class LSTMAutoencoder(nn.Module):
         super(LSTMAutoencoder, self).__init__()
         self.encoder = nn.LSTM(input_dim, hidden_dim, batch_first=True)
         self.decoder = nn.LSTM(hidden_dim, input_dim, batch_first=True)
-
+        
     def forward(self, x):
         encoded, _ = self.encoder(x)
         decoded, _ = self.decoder(encoded)
@@ -36,7 +37,7 @@ def append_metrics_to_report(model_name, y_true, y_pred, y_scores, plt_obj):
     f1 = f1_score(y_true, y_pred, zero_division=0)
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
-
+    
     auc = roc_auc_score(y_true, y_scores) if y_scores is not None else None
 
     if auc is not None:
@@ -74,7 +75,7 @@ def evaluate_models():
         data_dir = os.path.join(BASE_DATA_DIR, exp)
         model_save_dir = os.path.join(BASE_MODEL_DIR, exp)
         test_path = os.path.join(data_dir, "test_set_final.csv")
-
+        
         df_test = pd.read_csv(test_path)
         X_test = df_test.drop(columns=['label'], errors='ignore').values
         y_test = df_test['label'].values
@@ -107,32 +108,50 @@ def evaluate_models():
                 else:
                     preds = model.predict(X_test)
                     scores = model.predict_proba(X_test)[:, 1]
-
+                
                 report_txt += append_metrics_to_report(model_name, y_test, preds, scores, plt)
 
             elif file_name.endswith('.pth'):
                 seq_len = 10
                 X_test_seq = create_sequences(X_test, seq_len)
                 y_test_seq = y_test[seq_len:]
-
-                test_tensor = torch.tensor(X_test_seq, dtype=torch.float32).to(DEVICE)
+                
+                test_tensor = torch.tensor(X_test_seq, dtype=torch.float32)
+                
+                # --- CORRECTION DE LA MÉMOIRE (CUDA OOM) ---
+                # Utilisation d'un DataLoader pour traiter les données par lots (batch_size=1024)
+                test_loader = DataLoader(TensorDataset(test_tensor), batch_size=1024, shuffle=False)
+                
                 lstm_model = LSTMAutoencoder(input_dim=X_test.shape[1], hidden_dim=64).to(DEVICE)
                 lstm_model.load_state_dict(torch.load(model_path, map_location=DEVICE, weights_only=True))
                 lstm_model.eval()
 
+                rec_errors = []
                 with torch.no_grad():
-                    reconstructions = lstm_model(test_tensor)
-                    rec_error = torch.mean((reconstructions - test_tensor) ** 2, dim=[1, 2]).cpu().numpy()
+                    for batch in test_loader:
+                        batch_inputs = batch[0].to(DEVICE)
+                        reconstructions = lstm_model(batch_inputs)
+                        # Erreur de reconstruction par fenêtre
+                        batch_error = torch.mean((reconstructions - batch_inputs) ** 2, dim=[1, 2]).cpu().numpy()
+                        rec_errors.append(batch_error)
 
+                # Recombinaison de tous les lots
+                rec_error = np.concatenate(rec_errors)
+
+                # Définition du seuil et prédictions
                 threshold = np.percentile(rec_error, 95)
                 preds_lstm = (rec_error > threshold).astype(int)
                 report_txt += append_metrics_to_report(model_name, y_test_seq, preds_lstm, rec_error, plt)
+
+                # Nettoyage de la VRAM
+                del lstm_model, test_tensor, test_loader
+                torch.cuda.empty_cache()
 
         # Sauvegarde TXT
         txt_path = os.path.join(OUT_DIR, f"evaluation_report_{exp}.txt")
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write(report_txt)
-
+        
         # Sauvegarde PNG
         plt.plot([0, 1], [0, 1], 'k--', label='Chance (AUC = 0.5)')
         plt.xlabel('Taux de Faux Positifs (FPR)')
@@ -143,7 +162,7 @@ def evaluate_models():
         roc_path = os.path.join(OUT_DIR, f"roc_curve_{exp}.png")
         plt.savefig(roc_path, dpi=300, bbox_inches='tight')
         plt.close()
-
+        
         print(f"\n📄 Rapport : {txt_path}")
         print(f"🖼️ Graphique : {roc_path}\n")
 
