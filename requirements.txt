@@ -1,24 +1,33 @@
-# --- Calcul Numérique & Manipulation de Données ---
-numpy
+# FactoryShield-OT — Python dependencies
+# Install: pip install -r requirements.txt
+# Tested with Python 3.10+
+
+# ── Numerical & data ─────────────────────────────────────────────────────────
+numpy>=1.24.0,<2.0.0
 pandas>=2.0.0
-scipy>=1.10.0
+scipy>=1.11.0
 
-# --- Machine Learning Classique & Inférence ---
-scikit-learn>=1.2.0
-xgboost>=1.7.0
-joblib>=1.2.0
+# ── Machine learning (classical baselines) ───────────────────────────────────
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+joblib>=1.3.0
 
-# --- Deep Learning (LSTM Autoencoder) ---
-torch>=2.0.0
+# ── Deep learning (LSTM Autoencoder) ────────────────────────────────────────
+torch>=2.1.0
 
-# --- Interface Web / Dashboard SOC ---
-streamlit>=1.25.0
+# ── Streamlit SOC dashboard ──────────────────────────────────────────────────
+streamlit>=1.35.0
 
-# --- Visualisation & Graphiques ---
-matplotlib>=3.7.0
-seaborn>=0.12.0
-plotly>=5.14.0
+# ── Visualisation ────────────────────────────────────────────────────────────
+plotly>=5.18.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
 
-# --- Utilitaires, Progress Bar & Rapports ---
-tqdm>=4.65.0
-fpdf2>=2.7.0
+# ── Configuration (YAML) ─────────────────────────────────────────────────────
+PyYAML>=6.0.1
+
+# ── Reporting (PDF/HTML audit reports) ───────────────────────────────────────
+fpdf2>=2.7.9
+
+# ── Utilities ────────────────────────────────────────────────────────────────
+tqdm>=4.66.0

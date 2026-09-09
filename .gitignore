@@ -1,12 +1,46 @@
-# Cache Python
+# ── Python cache ─────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Données lourdes et prédictions
-out/
-data/
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── Dataset files (large, not versioned) ─────────────────────────────────────
+data/raw/
+data/processed/
+data/external/
 *.csv
 
-# Modèles sauvegardés
+# ── Model checkpoints ────────────────────────────────────────────────────────
 models_saved/
 *.pth
+*.pkl
+*.joblib
+
+# ── Evaluation & inference outputs ───────────────────────────────────────────
+out/
+logs/
+*.log
+
+# ── Jupyter notebook checkpoints ─────────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# ── Streamlit state ───────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Scaler artefacts (saved alongside model checkpoints) ─────────────────────
+*.joblib
+scaler.pkl

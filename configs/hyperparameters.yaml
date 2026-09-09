@@ -1,0 +1,204 @@
+# FactoryShield-OT Hyperparameter Configuration
+# This file contains all configurable parameters for the project
+
+# ===== DATA PROCESSING CONFIGURATION =====
+data:
+  # Dataset specifications
+  dataset_name: "HAIEnd 23.05"
+  target_system: "Emerson Ovation DCS (Boiler Process P1)"
+  
+  # Feature dimensions
+  features_haiend: 225
+  features_hai: 86
+  
+  # Preprocessing
+  scaler_type: "minmax"  # "standard" or "minmax"
+  fit_on_normal_only: true  # Only fit scaler on normal data (semi-supervised)
+  imputation_method: "ffill_bfill"  # Temporal forward/backward fill
+  
+  # Sliding window configuration
+  window_size: 60  # 60 seconds (60 timesteps)
+  stride: 1        # 1 second overlap
+  sequence_length: 60  # Same as window_size
+
+# ===== MODEL ARCHITECTURE =====
+lstm_autoencoder:
+  # Encoder configuration
+  # FIX CQ-1: renamed hidden_size → hidden1 to match LSTMAutoencoder.__init__ parameter
+  # and the state_dict key names it produces.  Any code reading this YAML must use
+  # cfg.lstm_autoencoder.hidden1 (not hidden_size) when constructing the model.
+  hidden1: 128
+  # FIX BUG-5: corrected from 32 → 64 to match the LSTMAutoencoder default and the
+  # pre-trained checkpoint architecture.  A 32-dim value here would cause a
+  # load_state_dict size-mismatch crash against any checkpoint trained with latent_dim=64.
+  latent_dim: 64
+  num_layers: 1
+  dropout: 0.0
+  
+  # Training parameters
+  learning_rate: 0.001
+  batch_size: 64
+  epochs: 50
+  loss_function: "l1"  # "l1" for MAE, "mse" for MSE
+  optimizer: "adam"
+  
+  # Sequence configuration
+  seq_len: 60  # Must match window_size
+  n_features: 225  # HAIEnd dataset has 225 features
+
+# ===== BASELINE MODELS =====
+baseline_models:
+  isolation_forest:
+    contamination: 0.01  # 1% for clean data, adjust for mixed
+    n_estimators: 100
+    max_samples: "auto"
+    random_state: 42
+  
+  oneclass_svm:
+    nu: 0.1  # Upper bound on fraction of outliers
+    kernel: "rbf"
+    gamma: "scale"
+    random_state: 42
+  
+  random_forest:
+    n_estimators: 100
+    max_depth: null
+    min_samples_split: 2
+    random_state: 42
+  
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    random_state: 42
+
+# ===== ANOMALY DETECTION CONFIGURATION =====
+detection:
+  # Error calculation
+  error_metric: "mae"  # Mean Absolute Error
+  
+  # Smoothing
+  smoothing_method: "ema"  # "ema" or "moving_average"
+  ema_alpha: 0.1  # Smoothing factor for EMA (0.1 = 10% weight to new value)
+  
+  # Thresholding
+  threshold_method: "percentile"  # "percentile" or "evt" (Extreme Value Theory)
+  percentile_threshold: 99.0  # 99th percentile for normal data
+  
+  # Alert logic
+  min_alert_duration: 3  # Minimum consecutive alerts to trigger
+  suppress_alerts_after_detection: 60  # Suppress for X timesteps after detection
+
+# ===== RISK SCORING CONFIGURATION =====
+risk_scoring:
+  # Thresholds for risk levels (based on normalized reconstruction error)
+  thresholds:
+    low: 0.0       # Surveillance - below this is normal
+    medium: 0.3    # Warning - mild deviation
+    high: 0.6      # Alert - significant deviation
+    critical: 0.85 # Emergency - severe anomaly
+  
+  # Risk factors weighting
+  factors:
+    error_magnitude: 0.6
+    error_duration: 0.2
+    affected_sensors: 0.1
+    sensor_criticality: 0.1
+  
+  # Critical sensor list (Emerson Ovation P1 Boiler critical components)
+  critical_sensors:
+    - "PIT01"  # Main pressure sensor
+    - "FT03"   # Main flow rate
+    - "TIT01"  # Outlet temperature
+    - "PCV01D" # Main pressure control valve
+    - "LCV01D" # Level control valve
+    - "FCV03D" # Flow control valve
+
+# ===== XAI (EXPLAINABLE AI) CONFIGURATION =====
+xai:
+  root_cause:
+    top_k_features: 5  # Number of top anomalous features to report
+    error_threshold: 0.1  # Minimum error to consider for root cause
+    include_temporal_context: true  # Consider temporal patterns
+    
+  # Feature importance methods
+  methods:
+    - "reconstruction_error"  # Native method (already implemented)
+    - "gradient_saliency"     # Future implementation
+    - "integrated_gradients"  # Future implementation
+
+# ===== STREAMLIT DASHBOARD CONFIGURATION =====
+dashboard:
+  # Display settings
+  refresh_interval: 5  # Seconds between updates
+  max_points_display: 1000  # Maximum data points to show in plots
+  
+  # Page configurations
+  pages:
+    - "eda"          # Exploratory Data Analysis
+    - "training"     # Model Training Interface
+    - "soc"          # Security Operations Center (Live Monitoring)
+    - "reports"      # Audit Reports & Analytics
+  
+  # Alert display
+  alert_history_size: 100  # Number of alerts to keep in history
+  show_root_cause: true    # Show root cause analysis
+
+# ===== TRAINING EXPERIMENTS =====
+experiments:
+  clean_100:
+    description: "100% clean training data (normal operation only)"
+    contamination: 0.01  # Expected anomaly rate in test
+    use_supervised_models: false  # Don't train RandomForest/XGBoost
+    
+  mixed_70_30:
+    description: "70% clean, 30% anomalous training data"
+    contamination: 0.30  # Higher anomaly rate expected
+    use_supervised_models: true   # Train RandomForest/XGBoost
+
+# ===== PATHS & DIRECTORIES =====
+paths:
+  data:
+    raw: "data/raw"
+    processed: "data/processed"
+    external: "data/external"
+  
+  models: "models_saved"
+  logs: "logs"
+  notebooks: "notebooks"
+  app: "app"
+  configs: "configs"
+  
+  # Specific file paths
+  train_clean: "data/processed/clean_100/train_clean_scaled.csv"
+  train_mixed: "data/processed/mixed_70_30/train_mixed_70_30.csv"
+  test_clean: "data/processed/clean_100/test_set_final.csv"
+  test_mixed: "data/processed/mixed_70_30/test_set_final.csv"
+
+# ===== PERFORMANCE & RESOURCE MANAGEMENT =====
+performance:
+  # Memory management
+  max_ram_usage_gb: 8.0
+  use_gpu: true
+  gpu_memory_fraction: 0.8
+  
+  # Parallel processing
+  num_workers: 4  # For DataLoader
+  prefetch_factor: 2
+  
+  # Batch processing
+  inference_batch_size: 512
+  evaluation_batch_size: 1024
+
+# ===== LOGGING CONFIGURATION =====
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_logging: true
+  log_directory: "logs"
+  
+  # TensorBoard logging
+  tensorboard:
+    enabled: true
+    log_dir: "logs/tensorboard"
+    update_freq: 100  # Steps between writes
